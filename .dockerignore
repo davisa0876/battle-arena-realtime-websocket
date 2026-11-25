@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.git
+.github
+.cursor
+.env
+.env.*
+!.env.example
+*.log
+tests
+scripts
+README.md
+vitest.config.ts
+eslint.config.js
+**/*.test.ts
+.DS_Store

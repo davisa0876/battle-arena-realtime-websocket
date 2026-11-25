@@ -1,0 +1,23 @@
+---
+description: Ticket authentication, Origin policy, and WebSocket security controls
+alwaysApply: true
+---
+
+# Authentication & Security
+
+- Laravel issues cryptographically random (≥256-bit) single-use tickets via `POST /api/realtime/tickets` (`auth:sanctum`). Node **only redeems** — it never issues tickets or trusts Sanctum cookies/bearers on the socket.
+- Store Redis keys as `SHA-256(ticket)` under the shared prefix. Consume with atomic **`GETDEL`**. Reject missing, expired, reused, malformed, or duplicate `ticket` query params.
+- Never put Sanctum session cookies or bearer tokens in WebSocket URLs. Never log raw tickets, full upgrade URLs with query strings, emails, or auth headers.
+- Validate browser `Origin` against `WS_ALLOWED_ORIGINS`. Missing `Origin` is allowed only for documented native clients and still requires a valid ticket. Origin is defense-in-depth, not authentication.
+- Fail closed when Redis is down: readiness 503, upgrades rejected. No anonymous fallback.
+- A transport ticket is **not** battle-room authorization (Phase 5B). Bound max socket lifetime; document logout/revocation limitations until periodic revalidation exists.
+- Prefer `wss://` behind a TLS-terminating proxy in non-local deployments. Do not expose Redis/Postgres to the LAN.
+
+```ts
+// ❌ BAD
+const userId = Number(url.searchParams.get("user_id"));
+
+// ✅ GOOD
+const ticketMeta = await ticketStore.consume(ticket); // SHA-256 + GETDEL
+bindSocket(socket, ticketMeta.userId);
+```

@@ -1,0 +1,24 @@
+---
+description: TypeScript and Node.js coding standards for the realtime gateway
+globs: "{src/**/*.ts,tests/**/*.ts}"
+alwaysApply: false
+---
+
+# TypeScript / Node Standards
+
+- Target supported Node.js LTS (pinned in Dockerfile). TypeScript `strict` mode is mandatory: `noImplicitAny`, `strictNullChecks`, `exactOptionalPropertyTypes` where practical.
+- Prefer ESM (`"type": "module"`). Export explicit types for public contracts; never use `any` for env, Redis payloads, or wire frames — use `unknown` and narrow with Zod.
+- Keep modules small and composable: config, HTTP, upgrade auth, connection registry, heartbeat, ticket store, Redis, logger. Avoid god-objects and circular imports.
+- Use `async`/`await` with timeouts/`AbortSignal` on I/O. Never block the event loop with sync filesystem I/O on request/upgrade paths.
+- Inject Redis clients, clocks (`now`), ID generators, and connection factories so unit tests stay deterministic.
+- No uncontrolled `setInterval` without clear ownership and shutdown cleanup.
+- Lint with ESLint, format with Prettier, typecheck with `tsc --noEmit`, test with Vitest. Scripts: `lint`, `typecheck`, `test`, `build`, `start`.
+
+```ts
+// ❌ BAD
+const data: any = JSON.parse(raw);
+
+// ✅ GOOD
+const parsed: unknown = JSON.parse(raw);
+const frame = ClientFrameSchema.parse(parsed);
+```

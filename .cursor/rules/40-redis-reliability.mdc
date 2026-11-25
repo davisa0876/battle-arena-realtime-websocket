@@ -1,0 +1,20 @@
+---
+description: Shared Redis 7 ticket contract and reliability rules
+globs: "{src/redis/**/*.ts,src/auth/**/*.ts,tests/**/*ticket*,tests/**/*redis*}"
+alwaysApply: false
+---
+
+# Redis Reliability
+
+- Reuse the existing Compose Redis 7 instance. Do not add a second Redis or database.
+- Laravel and Node must share the exact key namespace (`WS_TICKET_REDIS_PREFIX`, default `battle-arena:ws-ticket:`), SHA-256 hex digest, JSON metadata shape, and TTL (~30s). Bypass Laravel's global `REDIS_PREFIX` for ticket keys (dedicated/raw client) so Node does not double-prefix.
+- Ticket consumption is atomic `GETDEL` only — never GET-then-DEL. No silent in-memory ticket cache fallback.
+- Readiness (`GET /health/ready`) must fail when Redis cannot redeem tickets. Liveness may still pass.
+- Bound reconnect/backoff. If Redis disconnects mid-flight, new handshakes fail closed.
+- Keep command clients separate from any future Pub/Sub subscriber client. Redis Pub/Sub is at-most-once signaling only — never authoritative battle state.
+- Do not persist account or battle data on the Node filesystem.
+
+```ts
+// ✅ Redis key
+`${prefix}${sha256Hex(ticket)}` // e.g. battle-arena:ws-ticket:<64-hex>
+```

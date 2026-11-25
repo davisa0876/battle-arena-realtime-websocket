@@ -1,0 +1,20 @@
+---
+description: Unit, integration, and CI quality standards for the realtime gateway
+globs: "{tests/**/*.ts,src/**/*.ts,.github/workflows/**}"
+alwaysApply: false
+---
+
+# Testing & Quality
+
+- Cover: env validation, ticket hash/consume, replay/expiry, concurrent GETDEL, Origin allow/deny/missing, malformed/duplicate tickets, frame size limits, connection limits, heartbeat timeout, max lifetime, log redaction, graceful shutdown, Redis-down fail-closed.
+- Unit tests inject fake clocks, ticket stores, and Redis. Integration tests may use real Redis when available; skip clearly when not.
+- Never use real production credentials or live external SaaS in tests.
+- CI must run `lint`, `typecheck`, `test`, and `build`. Docker smoke (`compose config`, health endpoints) when the runner allows.
+- Never claim green results unless the commands were actually executed and passed. Distinguish pre-existing sibling-repo failures from new realtime failures.
+- Prefer Vitest. Keep tests deterministic; avoid timing flakes by injecting intervals/timeouts.
+
+```ts
+// ✅ Assert single-use redemption
+await store.consume(ticket); // ok
+await expect(store.consume(ticket)).rejects.toBeInstanceOf(TicketRejectedError);
+```

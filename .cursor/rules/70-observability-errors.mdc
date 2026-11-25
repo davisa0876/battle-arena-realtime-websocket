@@ -1,0 +1,22 @@
+---
+description: Structured logging, redaction, health semantics, and safe client errors
+globs: "{src/observability/**/*.ts,src/http/**/*.ts,src/websocket/**/*.ts,tests/**/*log*,tests/**/*health*}"
+alwaysApply: false
+---
+
+# Observability & Errors
+
+- Structured JSON logs (Pino). Include correlation fields (`connection_id`, upgrade outcome) without secrets.
+- **Always redact**: raw tickets, query strings containing `ticket=`, Sanctum tokens, session cookies, emails, Authorization headers, Redis key payloads with PII.
+- Client-facing errors use stable codes (`TICKET_INVALID`, `ORIGIN_REJECTED`, `REDIS_UNAVAILABLE`, `PROTOCOL_UNSUPPORTED`, `RATE_LIMITED`, `PAYLOAD_TOO_LARGE`, `SHUTTING_DOWN`). Never leak stack traces or internal topology to clients.
+- `GET /health/live` = process up. `GET /health/ready` = Redis ticket path operational. Ready fails closed on Redis outage; live may still return 200.
+- Graceful shutdown on SIGTERM/SIGINT: stop accepting upgrades, close sockets with a deadline, disconnect Redis, exit. Log lifecycle without credentials.
+- Prefer measurable counters for connections accepted/rejected and heartbeat timeouts when adding metrics later.
+
+```ts
+// ❌ BAD
+logger.info({ url: req.url }, "upgrade"); // leaks ticket
+
+// ✅ GOOD
+logger.info({ path: "/ws", outcome: "accepted", connectionId }, "upgrade");
+```

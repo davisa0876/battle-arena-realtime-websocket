@@ -1,0 +1,19 @@
+---
+description: Native WebSocket protocol v1 and connection lifecycle rules
+globs: "{src/websocket/**/*.ts,src/protocol/**/*.ts,tests/**/*websocket*,tests/**/*protocol*,tests/**/*connection*}"
+alwaysApply: false
+---
+
+# WebSocket Protocol (Phase 5A)
+
+- Use `ws` with `noServer: true`. Authenticate on the HTTP `upgrade` event before `handleUpgrade`. Path is exactly `/ws`; reject other paths.
+- No anonymous sockets. No battle/PvP/presence application frames in Phase 5A. Prefer transport-level ping/pong; optional diagnostic `ping`/`pong` JSON only if schema-validated.
+- Wire schema version `v: 1`. Server emits `connection.ready` with server-derived `connection_id`, `player_id`, and `heartbeat_interval_ms`. Errors use `connection.error` with stable machine codes (no localized UI strings on the wire).
+- Max payload default **8192** bytes. Disable `permessage-deflate`. Enforce UTF-8 JSON, connection-per-user / per-IP limits, and send backpressure (`bufferedAmount`).
+- Heartbeat: server ping on interval; close silent connections after timeout. Enforce configurable max connection lifetime. Reconnect requires a **new** Laravel ticket.
+- Close codes must be intentional. Never attach gameplay outcome fields from the client.
+
+```ts
+// ✅ connection.ready payload shape
+{ v: 1, type: "connection.ready", event_id, sent_at, payload: { connection_id, player_id, heartbeat_interval_ms } }
+```

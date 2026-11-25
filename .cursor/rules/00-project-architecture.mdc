@@ -1,0 +1,22 @@
+---
+description: Core Battle Arena realtime gateway architecture and ownership boundaries
+alwaysApply: true
+---
+
+# Battle Arena Realtime — Architecture
+
+- This service is a **transport / presence boundary only**. Laravel owns authentication, authorization, game rules, battle results, XP rewards, and PostgreSQL persistence.
+- An authenticated WebSocket is **not** authorization to join any battle room. Phase 5A ships connection bootstrap only — no PvP, matchmaking, invites, or battle rooms.
+- Keep this repository independent. Do not merge into `battle-arena-api`, `battle-arena-web`, `battle-arena-mobile`, or `battle-arena-infra`. Infra Compose orchestrates; it does not own Node source.
+- Never port the PvE Battle Engine, damage formulas, trainer XP rules, or creature entitlements into Node.
+- Never trust client-supplied `player_id`, `battle_id`, `trainer_level`, or `is_admin`. Identity comes only from atomically redeemed Laravel tickets.
+- Do not install Socket.IO or Laravel Reverb. Use native `ws` (RFC 6455) only.
+- Read `battle-arena-api/docs/PHASE5A_REALTIME_NODE_WEBSOCKET_SPEC_EN.md` before changing architecture or protocol.
+
+```ts
+// ❌ BAD — game authority in the gateway
+socket.on("message", (raw) => applyDamage(JSON.parse(raw)));
+
+// ✅ GOOD — transport session only
+// After ticket redemption, emit connection.ready; reject gameplay frames in 5A.
+```
