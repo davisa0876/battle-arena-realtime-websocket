@@ -4,6 +4,7 @@ Authenticated **WebSocket transport gateway** for Battle Arena. Laravel remains 
 
 **Phase 5A scope:** connection bootstrap, heartbeat, health, limits, graceful shutdown.  
 **Phase 5B.1–5B.2 transport:** private room grants, targeted Redis fanout (`pvp.room.changed`, `pvp.invitation.changed`, `pvp.battle.changed`).  
+**Presence:** authenticated sockets are tracked in Redis (`PRESENCE_ONLINE_SET_KEY`) so Laravel can serve `GET /api/pvp/online`. Clients keep a WS open while logged in and PvP-eligible on **any** screen — not only the lobby.  
 **Not in scope:** matchmaking, combat calculation, gameplay command frames (Laravel REST only).
 
 ## Stack

@@ -12,6 +12,7 @@ import {
   RoomUnsubscribeSchema,
   type NotificationEnvelope,
 } from "../protocol/schemas.js";
+import type { OnlinePresenceStore } from "../presence/onlineStore.js";
 import type { HeartbeatController } from "./heartbeat.js";
 import {
   buildConnectionError,
@@ -52,6 +53,7 @@ export function createConnectionRegistry(deps: {
   logger: Logger;
   heartbeat: HeartbeatController;
   roomGrantStore?: RoomGrantStore;
+  presence?: OnlinePresenceStore;
   maxRoomsPerConnection?: number;
   limits: {
     maxConnections: number;
@@ -87,6 +89,9 @@ export function createConnectionRegistry(deps: {
       lifetimeTimers.delete(connectionId);
     }
     connections.delete(connectionId);
+    if (deps.presence) {
+      void deps.presence.trackDisconnect(existing.playerId);
+    }
   };
 
   const sendError = (connection: AuthenticatedConnection, code: (typeof ErrorCode)[keyof typeof ErrorCode]): void => {
@@ -231,6 +236,9 @@ export function createConnectionRegistry(deps: {
       };
 
       connections.set(connection.id, connection);
+      if (deps.presence) {
+        void deps.presence.trackConnect(connection.playerId);
+      }
 
       input.socket.on("pong", () => {
         deps.heartbeat.notePong(input.socket);

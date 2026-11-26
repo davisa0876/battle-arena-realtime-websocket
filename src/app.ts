@@ -4,6 +4,7 @@ import { createRoomGrantStore } from "./auth/roomGrantStore.js";
 import { createTicketStore } from "./auth/ticketStore.js";
 import type { AppConfig } from "./config/env.js";
 import { createHttpGateway, type HttpGateway } from "./http/server.js";
+import { createOnlinePresenceStore } from "./presence/onlineStore.js";
 import { createRedisHandle, type RedisHandle } from "./redis/client.js";
 import { createNotificationSubscriber } from "./redis/notifications.js";
 import { createConnectionRegistry } from "./websocket/connections.js";
@@ -43,10 +44,18 @@ export function createApp(deps: { config: AppConfig; logger: Logger }): App {
     timeoutMs: deps.config.WS_HEARTBEAT_TIMEOUT_MS,
   });
 
+  const presence = createOnlinePresenceStore({
+    redis: redis.client,
+    onlineSetKey: deps.config.PRESENCE_ONLINE_SET_KEY,
+    connHashKey: deps.config.PRESENCE_CONN_HASH_KEY,
+    logger: deps.logger,
+  });
+
   const registry = createConnectionRegistry({
     logger: deps.logger,
     heartbeat,
     roomGrantStore,
+    presence,
     maxRoomsPerConnection: deps.config.WS_MAX_ROOMS_PER_CONNECTION,
     limits: {
       maxConnections: deps.config.WS_MAX_CONNECTIONS,
