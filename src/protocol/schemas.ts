@@ -75,10 +75,12 @@ export const PvpRoomChangedSchema = z.object({
   type: z.literal("pvp.room.changed"),
   event_id: z.string().min(1),
   sent_at: z.string().datetime(),
-  payload: z.object({
-    room_id: z.string().uuid(),
-    version: z.number().int().positive(),
-  }),
+  payload: z
+    .object({
+      room_id: z.string().uuid(),
+      version: z.number().int().positive(),
+    })
+    .strict(),
 });
 
 export const PvpInvitationChangedSchema = z.object({
@@ -86,9 +88,27 @@ export const PvpInvitationChangedSchema = z.object({
   type: z.literal("pvp.invitation.changed"),
   event_id: z.string().min(1),
   sent_at: z.string().datetime(),
-  payload: z.object({
-    invitation_id: z.string().uuid(),
-  }),
+  payload: z
+    .object({
+      invitation_id: z.string().uuid(),
+    })
+    .strict(),
+});
+
+/** Hint-only battle signal: IDs + monotonic version/sequence. No combat secrets. */
+export const PvpBattleChangedSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("pvp.battle.changed"),
+  event_id: z.string().min(1),
+  sent_at: z.string().datetime(),
+  payload: z
+    .object({
+      room_id: z.string().uuid(),
+      battle_id: z.string().uuid(),
+      version: z.number().int().positive(),
+      last_event_sequence: z.number().int().nonnegative(),
+    })
+    .strict(),
 });
 
 export const RoomSubscriptionRevokedSchema = z.object({
@@ -96,11 +116,23 @@ export const RoomSubscriptionRevokedSchema = z.object({
   type: z.literal("room.subscription.revoked"),
   event_id: z.string().min(1),
   sent_at: z.string().datetime(),
-  payload: z.object({
-    room_id: z.string().uuid(),
-    reason: z.string().min(1),
-  }),
+  payload: z
+    .object({
+      room_id: z.string().uuid(),
+      reason: z.string().min(1),
+    })
+    .strict(),
 });
+
+/** Client-facing typed notifications (discriminated by `type`). */
+export const ClientNotificationSchema = z.discriminatedUnion("type", [
+  PvpRoomChangedSchema,
+  PvpInvitationChangedSchema,
+  PvpBattleChangedSchema,
+  RoomSubscriptionRevokedSchema,
+]);
+
+export type ClientNotification = z.infer<typeof ClientNotificationSchema>;
 
 export const ErrorCode = {
   TICKET_MISSING: "TICKET_MISSING",
@@ -123,14 +155,50 @@ export const ErrorCode = {
 
 export type ErrorCodeName = (typeof ErrorCode)[keyof typeof ErrorCode];
 
-export const NotificationEnvelopeSchema = z.object({
-  v: z.literal(1),
-  type: z.string().min(1),
-  event_id: z.string().min(1),
-  sent_at: z.string().min(1),
+const notificationTargeting = {
   target_user_id: z.number().int().positive().nullable().optional(),
   target_room_id: z.string().uuid().nullable().optional(),
-  payload: z.record(z.unknown()),
-});
+} as const;
+
+const KNOWN_NOTIFICATION_TYPES = [
+  "pvp.room.changed",
+  "pvp.invitation.changed",
+  "pvp.battle.changed",
+  "room.subscription.revoked",
+] as const;
+
+/**
+ * Redis Pub/Sub wire envelope. Known PvP / room types use strict hint-only payloads
+ * (union includes `pvp.battle.changed`). Extra combat fields on known types fail closed.
+ * Unknown future types remain loosely typed.
+ */
+export const NotificationEnvelopeSchema = z.union([
+  PvpRoomChangedSchema.extend(notificationTargeting).extend({
+    sent_at: z.string().min(1),
+  }),
+  PvpInvitationChangedSchema.extend(notificationTargeting).extend({
+    sent_at: z.string().min(1),
+  }),
+  PvpBattleChangedSchema.extend(notificationTargeting).extend({
+    sent_at: z.string().min(1),
+  }),
+  RoomSubscriptionRevokedSchema.extend(notificationTargeting).extend({
+    sent_at: z.string().min(1),
+  }),
+  z.object({
+    v: z.literal(1),
+    type: z
+      .string()
+      .min(1)
+      .refine((value) => !(KNOWN_NOTIFICATION_TYPES as readonly string[]).includes(value), {
+        message: "known notification types must use the strict payload branch",
+      }),
+    event_id: z.string().min(1),
+    sent_at: z.string().min(1),
+    target_user_id: z.number().int().positive().nullable().optional(),
+    target_room_id: z.string().uuid().nullable().optional(),
+    payload: z.record(z.unknown()),
+  }),
+]);
 
 export type NotificationEnvelope = z.infer<typeof NotificationEnvelopeSchema>;

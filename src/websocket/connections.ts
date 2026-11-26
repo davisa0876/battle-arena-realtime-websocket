@@ -171,7 +171,7 @@ export function createConnectionRegistry(deps: {
           (payload) => connection.socket.send(payload),
           buildRoomSubscribed({
             roomId: meta.room_id,
-            version: meta.room_version,
+            ...(meta.room_version !== undefined ? { version: meta.room_version } : {}),
           }),
         );
         deps.logger.info(

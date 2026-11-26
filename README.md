@@ -3,7 +3,8 @@
 Authenticated **WebSocket transport gateway** for Battle Arena. Laravel remains the authority for identity, authorization, game rules, and persistent battle state. This service only manages ticket-authenticated realtime sockets.
 
 **Phase 5A scope:** connection bootstrap, heartbeat, health, limits, graceful shutdown.  
-**Not in scope:** PvP, matchmaking, battle rooms, presence, gameplay frames.
+**Phase 5B.1–5B.2 transport:** private room grants, targeted Redis fanout (`pvp.room.changed`, `pvp.invitation.changed`, `pvp.battle.changed`).  
+**Not in scope:** matchmaking, combat calculation, gameplay command frames (Laravel REST only).
 
 ## Stack
 
@@ -105,6 +106,19 @@ Keep Postgres/Redis/RustFS on `127.0.0.1`. Restrict firewall to the private LAN.
 
 Project rules live in `.cursor/rules/` (`00`–`70`) and encode architecture, TypeScript, protocol, auth, Redis, testing, Docker, and observability standards.
 
-## Phase 5B (deferred)
+## Phase 5B private rooms + battle hints
 
-Battle rooms with Laravel-verified membership, invite flows, versioned battle notifications, reconnect rehydration via REST, disconnect/forfeit policy — without duplicating the PvE engine.
+Laravel-verified membership, one-use room subscription grants, and Redis Pub/Sub fanout to authorized room subscribers. Clients must rehydrate authoritative state via REST after any hint.
+
+### `pvp.battle.changed` (hint-only)
+
+After a committed PvP combat mutation, Laravel publishes a **hint-only** notification. Node fans it out to sockets with an active grant-backed subscription for `target_room_id`. Payload is strictly:
+
+| Field | Meaning |
+| --- | --- |
+| `room_id` | Private lobby UUID |
+| `battle_id` | PvP battle UUID |
+| `version` | Monotonic battle version |
+| `last_event_sequence` | Last persisted event sequence |
+
+No damage, HP, moves, RNG, or other combat secrets are allowed on the wire. Missing a hint is fine — `GET /api/pvp/battles/{battle}` remains authoritative.
