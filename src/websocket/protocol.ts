@@ -4,9 +4,11 @@ import {
   ConnectionErrorSchema,
   ConnectionReadySchema,
   PROTOCOL_VERSION,
+  RoomSubscribedSchema,
   type ConnectionErrorMessage,
   type ConnectionReadyMessage,
   type ErrorCodeName,
+  type RoomSubscribedMessage,
 } from "../protocol/schemas.js";
 
 export function buildConnectionReady(input: {
@@ -17,9 +19,9 @@ export function buildConnectionReady(input: {
   eventId?: string;
 }): ConnectionReadyMessage {
   const now = input.now ?? (() => new Date());
-  const message = {
+  return ConnectionReadySchema.parse({
     v: PROTOCOL_VERSION,
-    type: "connection.ready" as const,
+    type: "connection.ready",
     event_id: input.eventId ?? randomUUID(),
     sent_at: now().toISOString(),
     payload: {
@@ -27,8 +29,7 @@ export function buildConnectionReady(input: {
       player_id: input.playerId,
       heartbeat_interval_ms: input.heartbeatIntervalMs,
     },
-  };
-  return ConnectionReadySchema.parse(message);
+  });
 }
 
 export function buildConnectionError(input: {
@@ -37,21 +38,37 @@ export function buildConnectionError(input: {
   eventId?: string;
 }): ConnectionErrorMessage {
   const now = input.now ?? (() => new Date());
-  const message = {
+  return ConnectionErrorSchema.parse({
     v: PROTOCOL_VERSION,
-    type: "connection.error" as const,
+    type: "connection.error",
+    event_id: input.eventId ?? randomUUID(),
+    sent_at: now().toISOString(),
+    payload: { code: input.code },
+  });
+}
+
+export function buildRoomSubscribed(input: {
+  roomId: string;
+  version?: number;
+  now?: () => Date;
+  eventId?: string;
+}): RoomSubscribedMessage {
+  const now = input.now ?? (() => new Date());
+  return RoomSubscribedSchema.parse({
+    v: PROTOCOL_VERSION,
+    type: "room.subscribed",
     event_id: input.eventId ?? randomUUID(),
     sent_at: now().toISOString(),
     payload: {
-      code: input.code,
+      room_id: input.roomId,
+      ...(input.version !== undefined ? { version: input.version } : {}),
     },
-  };
-  return ConnectionErrorSchema.parse(message);
+  });
 }
 
 export function safeJsonSend(
   send: (data: string) => void,
-  message: ConnectionReadyMessage | ConnectionErrorMessage,
+  message: Record<string, unknown>,
 ): void {
   send(JSON.stringify(message));
 }

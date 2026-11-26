@@ -1,9 +1,11 @@
 import type { Logger } from "pino";
 
+import { createRoomGrantStore } from "./auth/roomGrantStore.js";
 import { createTicketStore } from "./auth/ticketStore.js";
 import type { AppConfig } from "./config/env.js";
 import { createHttpGateway, type HttpGateway } from "./http/server.js";
 import { createRedisHandle, type RedisHandle } from "./redis/client.js";
+import { createNotificationSubscriber } from "./redis/notifications.js";
 import { createConnectionRegistry } from "./websocket/connections.js";
 import { createHeartbeatController } from "./websocket/heartbeat.js";
 
@@ -31,6 +33,11 @@ export function createApp(deps: { config: AppConfig; logger: Logger }): App {
     keyPrefix: deps.config.WS_TICKET_REDIS_PREFIX,
   });
 
+  const roomGrantStore = createRoomGrantStore({
+    redis: redis.ticketClient,
+    keyPrefix: deps.config.WS_ROOM_GRANT_REDIS_PREFIX,
+  });
+
   const heartbeat = createHeartbeatController({
     intervalMs: deps.config.WS_HEARTBEAT_INTERVAL_MS,
     timeoutMs: deps.config.WS_HEARTBEAT_TIMEOUT_MS,
@@ -39,10 +46,21 @@ export function createApp(deps: { config: AppConfig; logger: Logger }): App {
   const registry = createConnectionRegistry({
     logger: deps.logger,
     heartbeat,
+    roomGrantStore,
+    maxRoomsPerConnection: deps.config.WS_MAX_ROOMS_PER_CONNECTION,
     limits: {
       maxConnections: deps.config.WS_MAX_CONNECTIONS,
       maxPerUser: deps.config.WS_MAX_CONNECTIONS_PER_USER,
       maxPerIp: deps.config.WS_MAX_CONNECTIONS_PER_IP,
+    },
+  });
+
+  const notifications = createNotificationSubscriber({
+    url: deps.config.REDIS_URL,
+    channel: deps.config.REALTIME_NOTIFICATIONS_CHANNEL,
+    logger: deps.logger,
+    onMessage: (envelope) => {
+      registry.deliverNotification(envelope);
     },
   });
 
@@ -62,6 +80,7 @@ export function createApp(deps: { config: AppConfig; logger: Logger }): App {
     gateway,
     async start() {
       await redis.connect();
+      await notifications.start();
       await gateway.listen();
     },
     async stop() {
@@ -83,6 +102,7 @@ export function createApp(deps: { config: AppConfig; logger: Logger }): App {
           sleep(deps.config.SHUTDOWN_TIMEOUT_MS),
         ]);
         registry.dispose();
+        await notifications.stop();
         await redis.disconnect();
         deps.logger.info("graceful shutdown complete");
       } finally {

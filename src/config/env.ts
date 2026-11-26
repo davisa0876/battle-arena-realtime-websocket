@@ -30,6 +30,12 @@ const EnvSchema = z.object({
   REDIS_URL: z.string().url().default("redis://127.0.0.1:6379"),
   WS_TICKET_REDIS_PREFIX: z.string().min(1).default("battle-arena:ws-ticket:"),
   WS_TICKET_TTL_SECONDS: z.coerce.number().int().min(5).max(300).default(30),
+  WS_ROOM_GRANT_REDIS_PREFIX: z.string().min(1).default("battle-arena:ws-room-grant:"),
+  REALTIME_NOTIFICATIONS_CHANNEL: z
+    .string()
+    .min(1)
+    .default("battle-arena:realtime:notifications:v1"),
+  WS_MAX_ROOMS_PER_CONNECTION: z.coerce.number().int().min(1).max(20).default(5),
   WS_ALLOWED_ORIGINS: csvOrigins,
   WS_ALLOW_MISSING_ORIGIN: boolFromEnv.default(true),
   WS_PATH: z.string().default("/ws"),
@@ -71,6 +77,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     REDIS_URL: env.REDIS_URL,
     WS_TICKET_REDIS_PREFIX: env.WS_TICKET_REDIS_PREFIX,
     WS_TICKET_TTL_SECONDS: env.WS_TICKET_TTL_SECONDS,
+    WS_ROOM_GRANT_REDIS_PREFIX: env.WS_ROOM_GRANT_REDIS_PREFIX,
+    REALTIME_NOTIFICATIONS_CHANNEL: env.REALTIME_NOTIFICATIONS_CHANNEL,
+    WS_MAX_ROOMS_PER_CONNECTION: env.WS_MAX_ROOMS_PER_CONNECTION,
     WS_ALLOWED_ORIGINS: env.WS_ALLOWED_ORIGINS,
     WS_ALLOW_MISSING_ORIGIN: env.WS_ALLOW_MISSING_ORIGIN,
     WS_PATH: env.WS_PATH,

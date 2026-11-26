@@ -28,13 +28,79 @@ export const ConnectionErrorSchema = z.object({
 
 export type ConnectionErrorMessage = z.infer<typeof ConnectionErrorSchema>;
 
-/** Optional diagnostic frames only — no gameplay commands in Phase 5A. */
 export const ClientDiagnosticSchema = z.object({
   v: z.literal(PROTOCOL_VERSION),
   type: z.enum(["ping", "pong"]),
 });
 
 export type ClientDiagnosticMessage = z.infer<typeof ClientDiagnosticSchema>;
+
+export const RoomSubscribeSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("room.subscribe"),
+  request_id: z.string().min(1).optional(),
+  payload: z.object({
+    grant: z.string().min(32).max(128),
+  }),
+});
+
+export type RoomSubscribeMessage = z.infer<typeof RoomSubscribeSchema>;
+
+export const RoomUnsubscribeSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("room.unsubscribe"),
+  request_id: z.string().min(1).optional(),
+  payload: z.object({
+    room_id: z.string().uuid(),
+  }),
+});
+
+export type RoomUnsubscribeMessage = z.infer<typeof RoomUnsubscribeSchema>;
+
+export const RoomSubscribedSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("room.subscribed"),
+  event_id: z.string().min(1),
+  sent_at: z.string().datetime(),
+  payload: z.object({
+    room_id: z.string().uuid(),
+    version: z.number().int().positive().optional(),
+  }),
+});
+
+export type RoomSubscribedMessage = z.infer<typeof RoomSubscribedSchema>;
+
+export const PvpRoomChangedSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("pvp.room.changed"),
+  event_id: z.string().min(1),
+  sent_at: z.string().datetime(),
+  payload: z.object({
+    room_id: z.string().uuid(),
+    version: z.number().int().positive(),
+  }),
+});
+
+export const PvpInvitationChangedSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("pvp.invitation.changed"),
+  event_id: z.string().min(1),
+  sent_at: z.string().datetime(),
+  payload: z.object({
+    invitation_id: z.string().uuid(),
+  }),
+});
+
+export const RoomSubscriptionRevokedSchema = z.object({
+  v: z.literal(PROTOCOL_VERSION),
+  type: z.literal("room.subscription.revoked"),
+  event_id: z.string().min(1),
+  sent_at: z.string().datetime(),
+  payload: z.object({
+    room_id: z.string().uuid(),
+    reason: z.string().min(1),
+  }),
+});
 
 export const ErrorCode = {
   TICKET_MISSING: "TICKET_MISSING",
@@ -49,6 +115,22 @@ export const ErrorCode = {
   SHUTTING_DOWN: "SHUTTING_DOWN",
   LIFETIME_EXCEEDED: "LIFETIME_EXCEEDED",
   HEARTBEAT_TIMEOUT: "HEARTBEAT_TIMEOUT",
+  GRANT_INVALID: "GRANT_INVALID",
+  GRANT_MISMATCH: "GRANT_MISMATCH",
+  GRANT_MALFORMED: "GRANT_MALFORMED",
+  ROOM_NOT_SUBSCRIBED: "ROOM_NOT_SUBSCRIBED",
 } as const;
 
 export type ErrorCodeName = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export const NotificationEnvelopeSchema = z.object({
+  v: z.literal(1),
+  type: z.string().min(1),
+  event_id: z.string().min(1),
+  sent_at: z.string().min(1),
+  target_user_id: z.number().int().positive().nullable().optional(),
+  target_room_id: z.string().uuid().nullable().optional(),
+  payload: z.record(z.unknown()),
+});
+
+export type NotificationEnvelope = z.infer<typeof NotificationEnvelopeSchema>;

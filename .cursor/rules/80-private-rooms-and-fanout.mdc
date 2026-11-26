@@ -1,0 +1,15 @@
+---
+description: Private room subscription grants and targeted notification fanout
+globs: "{src/auth/roomGrantStore.ts,src/redis/notifications.ts,src/websocket/connections.ts,src/protocol/**/*.ts,tests/**/*room*,tests/**/*grant*}"
+alwaysApply: false
+---
+
+# Private Rooms & Fanout (Phase 5B.1)
+
+- Laravel alone authorizes room membership. Node never queries PostgreSQL for ACL.
+- Room access requires a one-use REST grant (`WS_ROOM_GRANT_REDIS_PREFIX`), redeemed with atomic `GETDEL` inside an already-authenticated socket. Never accept client `player_id` / open `room_id` as authority.
+- Bind grant `user_id` to the authenticated socket identity before `room.subscribed`.
+- Fanout only to: (1) `target_user_id` personal sockets, or (2) sockets with an active authorized room subscription for `target_room_id`.
+- Redis Pub/Sub is best-effort. Clients must rehydrate via REST. Fail closed for private fanout when Redis is unavailable.
+- No combat calculations, XP, or battle outcomes in Node.
+- On `room.subscription.revoked` / room close, drop local subscriptions.
