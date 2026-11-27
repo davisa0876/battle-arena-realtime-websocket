@@ -8,7 +8,8 @@ alwaysApply: false
 
 - Multi-stage Dockerfile on a **pinned Node.js Active LTS** image. Install with `npm ci`. Runtime stage: production deps only, non-root user, compiled `dist/`.
 - Healthcheck must call a real artifact (`dist/healthcheck.js` or equivalent Node one-liner). Do not reference nonexistent files.
-- Compose service `realtime` builds from `../battle-arena-realtime`. Bind `${REALTIME_BIND_ADDRESS:-127.0.0.1}:${REALTIME_PORT:-3001}:3001`. Depends on healthy Redis. Joins existing `battle_arena` network.
+- Compose service `realtime` is the Lambda image defined in `battle-arena-infra/docker/realtime` (handler `dist/lambda/handler.handler`). It publishes no port; the `gateway` service publishes `${REALTIME_BIND_ADDRESS:-127.0.0.1}:${REALTIME_PORT:-3001}`. The root `Dockerfile` (persistent server) is not used by Compose.
+- Lambda code must stay stateless between invocations: registry, rooms and limits live in Redis.
 - Never expose Redis, PostgreSQL, or RustFS to the LAN. Physical phone testing: temporarily set `API_BIND_ADDRESS=0.0.0.0` and `REALTIME_BIND_ADDRESS=0.0.0.0` only; revert afterwards. Use LAN IP in `PUBLIC_WS_URL`.
 - Preserve all Compose volumes and Laravel `APP_KEY`. No `down -v`, `migrate:fresh`, or destructive volume deletes unless the user explicitly requests them.
 - Prefer `wss://` behind TLS in real deployments. Local Compose may use `ws://localhost:3001/ws`.

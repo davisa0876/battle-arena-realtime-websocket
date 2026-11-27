@@ -24,15 +24,15 @@ Authenticated **WebSocket transport gateway** for Battle Arena. Laravel remains 
 From `battle-arena-infra`:
 
 ```bash
-docker compose up --build -d realtime
-docker compose ps
-curl http://127.0.0.1:3001/health/live
-curl http://127.0.0.1:3001/health/ready
+docker compose up -d --build
+docker compose logs -f gateway realtime
 ```
 
-Default bind: `127.0.0.1:3001`. Independent variable: `REALTIME_BIND_ADDRESS`.
+The Compose environment runs the **Lambda adapter** (see below): the `gateway` service publishes `ws://localhost:3001/ws` and invokes the `realtime` function. Port 3001 is WebSocket-only there, so the HTTP health endpoints listed further down apply to the persistent server only. Default bind: `127.0.0.1:3001` (`REALTIME_BIND_ADDRESS`). After code changes: `docker compose up -d --build realtime`.
 
 ## Local development
+
+These commands run the repository checks and the persistent server outside Compose. Stop the Compose `gateway` first if you need port 3001.
 
 ```bash
 cp .env.example .env
@@ -76,7 +76,7 @@ Ticket reuse / expiry / Redis outage → upgrade rejected (fail closed).
 - TTL: ~30s (`WS_TICKET_TTL_SECONDS`)
 - Laravel writes via dedicated `ws_tickets` Redis connection with **empty** prefix so keys match Node exactly.
 
-## HTTP endpoints
+## HTTP endpoints (persistent server)
 
 | Path | Meaning |
 | --- | --- |
@@ -106,6 +106,21 @@ Keep Postgres/Redis/RustFS on `127.0.0.1`. Restrict firewall to the private LAN.
 ## Cursor rules
 
 Project rules live in `.cursor/rules/` (`00`–`70`) and encode architecture, TypeScript, protocol, auth, Redis, testing, Docker, and observability standards.
+
+## AWS Lambda adapter (API Gateway WebSocket)
+
+`src/lambda/` is an event-driven variant of the same gateway for API Gateway WebSocket + Lambda. The persistent server above is unchanged and remains the local-development transport.
+
+| Persistent server | Lambda adapter |
+| --- | --- |
+| Upgrade handler validates Origin + redeems ticket | `$connect` does the same, returns 4xx/503 to reject |
+| `connection.ready` sent on accept | Sent by an async self-invoke (API Gateway rejects posts until `$connect` returns) with 410 retries |
+| In-memory `Map`s for sockets/rooms/limits | Redis sorted sets under `WS_REGISTRY_PREFIX` with TTL safety net |
+| Redis Pub/Sub subscriber | Laravel async-invokes the function with the identical envelope (`PVP_REALTIME_DRIVER=lambda`) |
+| `socket.send` | API Gateway Management API `PostToConnection`; 410 cleans up the registry and presence |
+| Server pings, 1 h lifetime | Client app pings (`$default`), API Gateway 10 min idle / 2 h max |
+
+Handler: `dist/lambda/handler.handler`. Extra env: `WS_MANAGEMENT_ENDPOINT` (required), `WS_REGISTRY_PREFIX`, `WS_REGISTRY_TTL_SECONDS`, `WS_READY_FUNCTION_NAME` (defaults to `AWS_LAMBDA_FUNCTION_NAME`), `LAMBDA_ENDPOINT` (local only). The Lambda container image is defined in `battle-arena-infra/docker/realtime` and is the `realtime` service of the local Compose environment; the persistent server (`src/index.ts`, `Dockerfile`) is no longer used by that environment. Unit tests: `tests/unit/lambdaCore.test.ts`.
 
 ## Phase 5B private rooms + battle hints
 

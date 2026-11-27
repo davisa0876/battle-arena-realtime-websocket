@@ -26,6 +26,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "3.1161.0",
+    "@aws-sdk/client-lambda": "3.1161.0",
     "@eslint/js": "^9.22.0",
     "@types/node": "^22.13.10",
     "@types/ws": "^8.18.0",

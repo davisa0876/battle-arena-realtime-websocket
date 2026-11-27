@@ -11,6 +11,6 @@ alwaysApply: false
 - Bind grant `user_id` to the authenticated socket identity before `room.subscribed`.
 - Fanout only to: (1) `target_user_id` personal sockets, or (2) sockets with an active authorized room subscription for `target_room_id`.
 - Known hint types use strict payloads: `pvp.room.changed`, `pvp.invitation.changed`, `pvp.battle.changed` (`room_id`, `battle_id`, `version`, `last_event_sequence` only), `room.subscription.revoked`.
-- Redis Pub/Sub is best-effort. Clients must rehydrate via REST. Fail closed for private fanout when Redis is unavailable.
+- Hint delivery is best-effort: Redis Pub/Sub for the persistent server, async Lambda invoke for the Lambda adapter (`src/lambda/`). Keep both on the same envelope and validation. Clients must rehydrate via REST. Fail closed for private fanout when Redis is unavailable.
 - No combat calculations, XP, battle actions, or combat secrets in Node or on the wire.
 - On `room.subscription.revoked` / room close, drop local subscriptions.
