@@ -7,6 +7,7 @@ alwaysApply: true
 
 - This service is a **transport / presence boundary only**. Laravel owns authentication, authorization, game rules, battle results, XP rewards, and PostgreSQL persistence.
 - An authenticated WebSocket is **not** authorization to join any battle room. Phase 5A ships connection bootstrap only — no PvP, matchmaking, invites, or battle rooms.
+- Two entry points share the protocol: the persistent server (`src/index.ts`) and the API Gateway WebSocket Lambda adapter (`src/lambda/`, used by the local Compose environment and the AWS target).
 - Keep this repository independent. Do not merge into `battle-arena-api`, `battle-arena-web`, `battle-arena-mobile`, or `battle-arena-infra`. Infra Compose orchestrates; it does not own Node source.
 - Never port the PvE Battle Engine, damage formulas, trainer XP rules, or creature entitlements into Node.
 - Never trust client-supplied `player_id`, `battle_id`, `trainer_level`, or `is_admin`. Identity comes only from atomically redeemed Laravel tickets.
