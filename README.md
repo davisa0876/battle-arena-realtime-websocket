@@ -7,6 +7,19 @@ Authenticated **WebSocket transport gateway** for Battle Arena. Laravel remains 
 **Presence:** authenticated sockets are tracked in Redis (`PRESENCE_ONLINE_SET_KEY`) so Laravel can serve `GET /api/pvp/online`. Clients keep a WS open while logged in and PvP-eligible on **any** screen — not only the lobby.  
 **Not in scope:** matchmaking, combat calculation, gameplay command frames (Laravel REST only).
 
+## Running the project locally
+
+The [`battle-arena-infra`](https://github.com/davisa0876/battle-arena-infra) repository is responsible for creating the local environment. Use it to run the whole project (database, Redis, storage, email, API, realtime and web) with Docker.
+
+Clone it next to this repository and the other `battle-arena-*` repositories, then:
+
+```bash
+cd battle-arena-infra
+docker compose up -d --build
+```
+
+First-time setup, environment files, URLs and troubleshooting are in the [infra README](https://github.com/davisa0876/battle-arena-infra#readme).
+
 ## Stack
 
 | Piece | Choice |
